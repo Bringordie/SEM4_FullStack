@@ -34,7 +34,7 @@ app.use(function (req, res, next) {
   if (req.originalUrl.startsWith("/api")) {
     res
       .status(404)
-      .json({ code: 404, msg: "this API does not contanin this endpoint" });
+      .json({ code: 404, msg: "this API does not contain this endpoint" });
   }
   next();
 });
