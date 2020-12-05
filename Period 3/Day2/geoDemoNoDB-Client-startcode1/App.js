@@ -1,16 +1,20 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Platform,
   Text,
   View,
   StyleSheet,
+  Button,
   TouchableHighlight,
+  TouchableOpacity,
   Alert,
 } from "react-native";
 import * as Location from "expo-location";
 import MapView, { PROVIDER_GOOGLE } from "react-native-maps";
 import Constants from "expo-constants";
 import facade from "./serverFacade";
+import GetLoginData from "./GetLoginData";
+import { StatusBar } from "expo-status-bar";
 
 const MyButton = ({ txt, onPressButton }) => {
   return (
@@ -25,9 +29,11 @@ export default App = () => {
   const [position, setPosition] = useState({ latitude: null, longitude: null });
   const [errorMessage, setErrorMessage] = useState(null);
   const [gameArea, setGameArea] = useState([]);
+  const [otherPlayers, setOtherPlayers] = useState([]);
   const [region, setRegion] = useState(null);
   const [serverIsUp, setServerIsUp] = useState(false);
   const [status, setStatus] = useState("");
+  const [loggedIn, setLoggedIn] = useState(false);
   let mapRef = useRef(null);
 
   useEffect(() => {
@@ -71,16 +77,18 @@ export default App = () => {
   When a press is done on the map, coordinates (lat,lon) are provided via the event object
   */
   onMapPress = async (event) => {
-    //Get location from where user pressed on map, and check it against the server
-    const coordinate = event.nativeEvent.coordinate;
-    const lon = coordinate.longitude;
-    const lat = coordinate.latitude;
-    try {
-      const status = await facade.isUserInArea(lon, lat);
-      showStatusFromServer(setStatus, status);
-    } catch (err) {
-      Alert.alert("Error", "Server could not be reached");
-      setServerIsUp(false);
+    if (event.nativeEvent.coordinate != undefined) {
+      //Get location from where user pressed on map, and check it against the server
+      const coordinate = event.nativeEvent.coordinate;
+      const lon = coordinate.longitude;
+      const lat = coordinate.latitude;
+      try {
+        const status = await facade.isUserInArea(lon, lat);
+        showStatusFromServer(setStatus, status);
+      } catch (err) {
+        Alert.alert("Error", "Server could not be reached");
+        setServerIsUp(false);
+      }
     }
   };
 
@@ -111,12 +119,29 @@ export default App = () => {
     }
   };
 
+  const [showLoginDialog, setShowLoginDialog] = useState(true);
+
+  const closeLoginDataDialog = () => {
+    setShowLoginDialog(false);
+  };
+
+  const updateOtherPlayers = useCallback(
+    (props) => {
+      setOtherPlayers(props);
+    },
+    [setOtherPlayers]
+  );
+
+  const showCreator = () => {
+    Alert.alert("Frederik Braagaard \n cph-fb87 \n - CPHBusiness");
+  };
+
   const info = serverIsUp ? status : " Server is not up";
   return (
     <View style={{ flex: 1, paddingTop: 20 }}>
       {!region && <Text style={styles.fetching}>.. Fetching data</Text>}
 
-      {region && (
+      {region && position.longitude != undefined && (
         <MapView
           ref={mapRef}
           style={{ flex: 14 }}
@@ -139,8 +164,24 @@ export default App = () => {
             coordinate={{
               longitude: position.longitude,
               latitude: position.latitude,
+              title: "You are here",
             }}
+            description={"This is where you are currently located."}
           />
+          {otherPlayers.map((marker, index) => (
+            <MapView.Marker
+              key={index}
+              coordinate={{
+                longitude: marker.geometry.coordinates[0],
+                latitude: marker.geometry.coordinates[1],
+                title: marker.properties.name,
+              }}
+              description={marker.properties.name}
+              // Didn't show on adroid it seems only iphone
+              //pinColor={"#000000"}
+              pinColor={"green"}
+            />
+          ))}
         </MapView>
       )}
 
@@ -160,6 +201,19 @@ export default App = () => {
         onPressButton={() => onCenterGameArea()}
         txt="Show Game Area"
       />
+      <MyButton
+        style={{ flex: 2 }}
+        onPressButton={() => showCreator()}
+        txt="Show Author"
+      />
+      <Button title="login" onPress={() => setShowLoginDialog(true)} />
+      <GetLoginData
+        visible={showLoginDialog}
+        onClose={closeLoginDataDialog}
+        positions={position}
+        setOtherPlayers={updateOtherPlayers}
+      />
+      <StatusBar style="auto" />
     </View>
   );
 };
