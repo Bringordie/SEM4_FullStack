@@ -1,7 +1,5 @@
 //#Interfaces 1
 
-let http = require("http");
-
 // A)
 interface IBook {
   title: string;
